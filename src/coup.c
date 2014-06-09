@@ -4,10 +4,13 @@
 #include <stdio.h>
 #include <string.h>
 
-struct coup_player {
-    deck_t *hand;
-    int ncoins;
-};
+typedef enum coup_state_e {
+    COUP_STATE_NEWGAME,
+    COUP_STATE_IDLE,
+    COUP_STATE_PLAYER_MOVE,
+    COUP_STATE_GROUP_MOVE,
+    COUP_STATE_GAMEOVER
+} coup_state_t;
 
 struct coup {
     deck_t *court;
@@ -15,11 +18,43 @@ struct coup {
 
     int nplayers;
     struct coup_player *player;
+
+    coup_state_t state;
+    int turn;
+
+    /* Callbacks */
+    const struct coup_cb_set *cb;
 };
+
+void
+_coup_next_turn(
+    coup_t *coup)
+{
+    int current_turn = coup->turn;
+    int i;
+    for(i=0; i<coup->nplayers; i++)
+    {
+        coup->turn = (coup->turn + 1) % coup->nplayers;
+        if (deck_count(coup->player[coup->turn].hand) > 0)
+        {
+            break;
+        }
+    }
+
+    /* Fire event */
+    if (coup->turn == current_turn)
+    {
+        coup->cb->game_over(coup);
+    }else{
+        struct coup_player *player = &coup->player[coup->turn];
+        coup->cb->player_move(coup, player);
+    }
+}
 
 coup_t *
 coup_newgame(
-    int nplayers)
+    int nplayers,
+    const struct coup_cb_set *cb)
 {
     if (nplayers < COUP_MIN_PLAYERS || nplayers > COUP_MAX_PLAYERS)
     {
@@ -33,6 +68,11 @@ coup_newgame(
         return NULL;
     }
     memset(coup, 0x00, sizeof(coup_t));
+
+    /* Initialize properties */
+    coup->state = COUP_STATE_NEWGAME;
+    coup->turn = 0;
+    coup->cb = cb;
 
     /* Initialize court deck */
     deck_t *court = deck_alloc();
@@ -77,4 +117,21 @@ coup_newgame(
     return coup;
 }
 
+int
+coup_start(
+    coup_t *coup)
+{
+    if (!coup)
+    {
+        return -1;
+    }
 
+    if (coup->state != COUP_STATE_NEWGAME)
+    {
+        return -1;
+    }
+
+    coup->state = COUP_STATE_IDLE;
+    _coup_next_turn(coup);
+    return 0;
+}
