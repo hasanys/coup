@@ -14,5 +14,6 @@ card_t *deck_take_card(deck_t *deck);
 int deck_add_card(deck_t *deck, card_t *card);
 int deck_shuffle(deck_t *deck);
 void deck_list(deck_t *deck);
+int deck_count(deck_t *deck);
 
 #endif

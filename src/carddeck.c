@@ -190,3 +190,15 @@ deck_list(
         card = card->next;
     }
 }
+
+int
+deck_count(
+    deck_t *deck)
+{
+    if (!deck)
+    {
+        return -1;
+    }
+
+    return deck->ncards;
+}
